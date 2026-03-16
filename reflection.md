@@ -5,39 +5,31 @@ Answer each question in 3 to 5 sentences. Be specific and honest about what actu
 ## 1. What was broken when you started?
 
 - What did the game look like the first time you ran it?
-- List at least two concrete bugs you noticed at the start  
-  (for example: "the secret number kept changing" or "the hints were backwards").
-
----
+- The two mains bugs I have observed were:
+    1. The original fallback converted guess to a string and compared it to secret (which on even attempts was already a string). The fix converts both values to int and does proper numeric comparison. It also added a nested try/except and an equality check in the fallback path.
+    2. attempts Initialized to 1 Instead of 0 in app.py, Starting at 1 means the very first display shows "Attempts left: 7" (for Normal, limit 8) instead of the correct "Attempts left: 8", and all attempt-based scoring calculations are off-by-one from the start.
 
 ## 2. How did you use AI as a teammate?
 
-- Which AI tools did you use on this project (for example: ChatGPT, Gemini, Copilot)?
-- Give one example of an AI suggestion that was correct (including what the AI suggested and how you verified the result).
-- Give one example of an AI suggestion that was incorrect or misleading (including what the AI suggested and how you verified the result).
+- I have used Copilot in VSCode.
+- One such suggestion that AI handed me was the type error logic. It clearly explained me that the comparisions are lexicographic and not numeric. And after the fix was implemented I ran and concluded that fix was implemented by testing the website on and confirming the correct logic. 
+- Nor a wrong suggestion but when I was asking the exact section of the code where number of attempts ligc was implemented the, was getting not to straight answer it was focused on finding some logic glitch behind the number of attempts section rather than the exact part of the code.
 
----
 
 ## 3. Debugging and testing your fixes
 
-- How did you decide whether a bug was really fixed?
-- Describe at least one test you ran (manual or using pytest)  
-  and what it showed you about your code.
-- Did AI help you design or understand any tests? How?
-
----
+Fix and verify manually — after correcting check_guess() in app.py, manually guessing numbers confirmed hints matched expectations.
+Noticed that hints said "Go Higher" when guessing a number that was clearly too high, and vice versa. This pointed directly to the comparison in check_guess().
+by watching the debug panel, you could observe the secret was sometimes an int and sometimes a str depending on attempt number, confirming the type-switching bug.
+Asking AI whenever i feel there is a bug in certain sectio of the code, to confirm my theory has been a great help, as it gives me confidence and also give a proper start to debug the issue.
 
 ## 4. What did you learn about Streamlit and state?
 
-- In your own words, explain why the secret number kept changing in the original app.
-- How would you explain Streamlit "reruns" and session state to a friend who has never used Streamlit?
-- What change did you make that finally gave the game a stable secret number?
+Streamlit re-runs the entire script on every interaction. Every button click, text input change, or widget interaction triggers a full top-to-bottom re-execution of app.py. Variables defined outside st.session_state are reset each run — this is why the secret number appeared to change randomly
+- removed the hard coded part in the UI and made it correspoding to difficulting selected, new game will reset with the random integer within low and high of the selected difficulty range. 
 
----
 
 ## 5. Looking ahead: your developer habits
+game_logic.py file was already written as a spec. Running pytest before touching any code immediately told you exactly what behavior was expected ("Win", "Too High", "Too Low") and gave a clear pass/fail target for each fix.
 
-- What is one habit or strategy from this project that you want to reuse in future labs or projects?
-  - This could be a testing habit, a prompting strategy, or a way you used Git.
-- What is one thing you would do differently next time you work with AI on a coding task?
-- In one or two sentences, describe how this project changed the way you think about AI generated code.
+ask the AI to explain why each piece of generated code works, not just what it does. In this project, the AI-generated check_guess() had the comparison operator backwards — a subtle bug that would have been caught if the reasoning behind the comparison had been questioned during generation
