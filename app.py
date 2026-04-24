@@ -1,6 +1,8 @@
 import random
 import streamlit as st
 from logic_utils import get_range_for_difficulty, parse_guess, check_guess, update_score
+from agent import AgentState, run_agent_turn
+from personalities import get_personality, list_personalities
 
 _HINT_MESSAGES = {
     "Win": "🎉 Correct!",
@@ -15,6 +17,14 @@ def reset_round_for_difficulty(difficulty: str):
     st.session_state.attempts = 0
     st.session_state.status = "playing"
     st.session_state.history = []
+    # Reset agent state
+    st.session_state.agent_low = low
+    st.session_state.agent_high = high
+    st.session_state.agent_attempts = 0
+    st.session_state.agent_status = "playing"
+    st.session_state.agent_history = []
+    st.session_state.thinking_panel = []
+    st.session_state.turn_log = []
 
 
 st.set_page_config(page_title="Glitchy Guesser", page_icon="🎮")
@@ -44,6 +54,26 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "active_difficulty" not in st.session_state:
     st.session_state.active_difficulty = difficulty
+
+# Challenge Mode state
+if "challenge_mode" not in st.session_state:
+    st.session_state.challenge_mode = False
+if "personality_key" not in st.session_state:
+    st.session_state.personality_key = "Strategist"
+if "agent_low" not in st.session_state:
+    st.session_state.agent_low = low
+if "agent_high" not in st.session_state:
+    st.session_state.agent_high = high
+if "agent_attempts" not in st.session_state:
+    st.session_state.agent_attempts = 0
+if "agent_status" not in st.session_state:
+    st.session_state.agent_status = "playing"
+if "agent_history" not in st.session_state:
+    st.session_state.agent_history = []
+if "thinking_panel" not in st.session_state:
+    st.session_state.thinking_panel = []
+if "turn_log" not in st.session_state:
+    st.session_state.turn_log = []
 
 if st.session_state.active_difficulty != difficulty:
     st.session_state.active_difficulty = difficulty
