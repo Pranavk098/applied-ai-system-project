@@ -75,6 +75,33 @@ if "thinking_panel" not in st.session_state:
 if "turn_log" not in st.session_state:
     st.session_state.turn_log = []
 
+st.sidebar.divider()
+st.sidebar.subheader("🤖 Challenge Mode")
+challenge_mode = st.sidebar.checkbox("Race the AI", value=st.session_state.challenge_mode)
+
+if challenge_mode != st.session_state.challenge_mode:
+    st.session_state.challenge_mode = challenge_mode
+    reset_round_for_difficulty(difficulty)
+    st.rerun()
+
+if st.session_state.challenge_mode:
+    personality_names = {
+        "Strategist": "🧠 The Strategist",
+        "Gambler": "🎲 The Gambler",
+        "Professor": "📚 The Professor",
+        "TrashTalker": "😤 The Trash-Talker",
+    }
+    selected = st.sidebar.radio(
+        "Pick your opponent",
+        options=list(personality_names.keys()),
+        format_func=lambda k: personality_names[k],
+        index=list(personality_names.keys()).index(st.session_state.personality_key),
+    )
+    if selected != st.session_state.personality_key:
+        st.session_state.personality_key = selected
+        reset_round_for_difficulty(difficulty)
+        st.rerun()
+
 if st.session_state.active_difficulty != difficulty:
     st.session_state.active_difficulty = difficulty
     reset_round_for_difficulty(difficulty)
@@ -151,4 +178,10 @@ with st.expander("Developer Debug Info"):
     st.write("History:", st.session_state.history)
 
 st.divider()
+if st.session_state.challenge_mode and st.session_state.thinking_panel:
+    st.sidebar.divider()
+    with st.sidebar.expander("🤖 Agent Thinking", expanded=True):
+        for step in st.session_state.thinking_panel:
+            st.write(step)
+
 st.caption("Built by an AI that claims this code is production-ready.")
