@@ -107,6 +107,17 @@ if st.session_state.active_difficulty != difficulty:
     reset_round_for_difficulty(difficulty)
     st.rerun()
 
+if st.session_state.challenge_mode:
+    col_human, col_agent = st.columns(2)
+    with col_human:
+        st.metric("Your attempts", st.session_state.attempts)
+        st.caption(f"Status: {st.session_state.status}")
+    with col_agent:
+        p = get_personality(st.session_state.personality_key)
+        st.metric(f"{p.name} attempts", st.session_state.agent_attempts, delta_color="inverse")
+        st.caption(f"Agent status: {st.session_state.agent_status}")
+    st.divider()
+
 st.subheader("Make a guess")
 st.info(
     f"Guess a number between {low} and {high}. "
@@ -169,6 +180,41 @@ if submit:
                 f"Out of attempts! The secret was {st.session_state.secret}. "
                 f"Score: {st.session_state.score}"
             )
+
+        # Agent turn — only if human did not just win and challenge mode is on
+        if (
+            st.session_state.challenge_mode
+            and st.session_state.status == "playing"
+            and st.session_state.agent_status == "playing"
+        ):
+            personality = get_personality(st.session_state.personality_key)
+            agent_state = AgentState(
+                low=st.session_state.agent_low,
+                high=st.session_state.agent_high,
+                attempts=st.session_state.agent_attempts,
+                status=st.session_state.agent_status,
+                history=list(st.session_state.agent_history),
+            )
+            result = run_agent_turn(agent_state, personality, st.session_state.secret)
+            # Sync agent state back to session state
+            st.session_state.agent_low = agent_state.low
+            st.session_state.agent_high = agent_state.high
+            st.session_state.agent_attempts = agent_state.attempts
+            st.session_state.agent_status = agent_state.status
+            st.session_state.agent_history = agent_state.history
+            st.session_state.thinking_panel = result.thinking
+            st.session_state.turn_log.append({
+                "guess": result.guess,
+                "outcome": result.outcome,
+                "narration": result.narration,
+            })
+
+            if result.outcome == "Win":
+                st.session_state.agent_status = "won"
+                p = get_personality(st.session_state.personality_key)
+                st.error(f"🤖 {p.name} wins! It guessed {result.guess}. \"{result.narration}\"")
+            elif st.session_state.agent_attempts >= attempt_limit:
+                st.session_state.agent_status = "lost"
 
 with st.expander("Developer Debug Info"):
     st.write("Secret:", st.session_state.secret)
