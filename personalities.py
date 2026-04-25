@@ -248,7 +248,7 @@ PERSONALITIES: dict[str, Personality] = {
         },
         few_shot_examples=[
             {"role": "user",      "content": "I guessed 50. Result: Too Low. Tied at 1 guess."},
-            {"role": "assistant", "content": "You guessed 50. I guessed better. We're tied but I'm already more confident about what I'm doing."},
+            {"role": "assistant", "content": "Too Low — fine. Still tied with you. That changes in about two moves."},
             {"role": "user",      "content": "I guessed 88. Result: Too High. You're ahead."},
             {"role": "assistant", "content": "88? You went high and it was wrong. I'm ahead now. Say something."},
             {"role": "user",      "content": "I guessed 63. Result: Too Low. One or two values left."},
