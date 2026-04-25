@@ -59,11 +59,13 @@ def test_win_sets_status():
 def test_turn_result_has_thinking_steps():
     personality = get_personality("Professor")
     state = AgentState(low=1, high=100)
-    result = run_agent_turn(state, personality, secret=99)
-    assert len(result.thinking) >= 3
+    result = run_agent_turn(state, personality, secret=99, log=False)
+    assert len(result.thinking) >= 5
+    step_names = {s["step"] for s in result.thinking}
+    assert step_names >= {"observe", "plan", "act", "assess", "evaluate"}
     for step in result.thinking:
-        assert isinstance(step, str)
-        assert len(step) > 0
+        assert "step" in step
+        assert "output" in step
 
 
 def test_fallback_narration_when_no_api_key():

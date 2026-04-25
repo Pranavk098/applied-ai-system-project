@@ -39,13 +39,13 @@ def _detect_situation(agent_attempts: int, human_attempts: int, low: int, high: 
 
 
 def _call_openai(
-    personality: Personality,
+    personality,
     low: int,
     high: int,
     guess: int,
     outcome: str,
     situation: str,
-    human_last_guess: int | None,
+    human_last_guess,
 ) -> str:
     from openai import OpenAI
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
@@ -76,16 +76,15 @@ def _call_openai(
 
 
 def get_narration(
-    personality: Personality,
+    personality,
     low: int,
     high: int,
     guess: int,
     outcome: str,
     situation: str = "",
-    human_last_guess: int | None = None,
+    human_last_guess=None,
 ) -> tuple:
     """Return (narration_text, api_was_used). Falls back to canned line if API unavailable."""
-    # Pick a situation-specific fallback line when available
     def _fallback() -> str:
         lines = personality.situation_lines.get(situation) or personality.situation_lines.get("default") or personality.fallback_lines
         return random.choice(lines)
@@ -98,57 +97,84 @@ def get_narration(
         return _fallback(), False
 
 
-def run_agent_turn(
-    state: AgentState,
-    personality: Personality,
-    secret: int,
-    human_attempts: int = 0,
-    human_last_guess: int | None = None,
-    log: bool = True,
-) -> TurnResult:
-    """Execute one agentic turn. Modifies state in-place. Returns a TurnResult."""
-    thinking = []
+# ── Named step functions ───────────────────────────────────────────────────────
 
-    # 1. OBSERVE
-    thinking.append(f"Range: [{state.low}, {state.high}] | Attempts: {state.attempts}")
+def _observe(state: AgentState) -> dict:
+    return {"step": "observe", "output": {"range": [state.low, state.high], "attempts": state.attempts}}
 
-    # 2. PLAN
+
+def _plan(personality, state: AgentState) -> dict:
     guess = personality.strategy(state.low, state.high, state.history)
-    thinking.append(f"Strategy ({personality.name}): guess {guess}")
+    return {
+        "step": "plan",
+        "input": {"low": state.low, "high": state.high, "history": list(state.history)},
+        "output": {"guess": guess, "reason": personality.key},
+    }
 
-    # 3. ACT
+
+def _act(guess: int, secret: int) -> dict:
     outcome = check_guess(guess, secret)
+    return {"step": "act", "input": {"guess": guess, "secret": secret}, "output": {"outcome": outcome}}
 
-    # 4. DETECT SITUATION
+
+def _assess(state: AgentState, human_attempts: int) -> dict:
     situation = _detect_situation(state.attempts, human_attempts, state.low, state.high)
+    return {"step": "assess", "output": {"situation": situation}}
 
-    # 5. NARRATE
+
+def _narrate(personality, state: AgentState, guess: int, outcome: str, situation: str, human_last_guess) -> dict:
     narration, api_used = get_narration(
         personality, state.low, state.high, guess, outcome,
-        situation=situation,
-        human_last_guess=human_last_guess,
+        situation=situation, human_last_guess=human_last_guess,
     )
-    thinking.append(f'Situation: {situation} | Commentary: "{narration}"')
+    return {"step": "narrate", "output": {"narration": narration, "api_used": api_used}}
 
-    # Capture range before mutation so the log is accurate
-    low_before = state.low
-    high_before = state.high
 
-    # 6. EVALUATE — update range
+def _evaluate(state: AgentState, guess: int, outcome: str) -> dict:
     if outcome == "Too High":
         state.high = guess - 1
     elif outcome == "Too Low":
         state.low = guess + 1
-
     state.attempts += 1
     state.history.append(guess)
-
     if outcome == "Win":
         state.status = "won"
+    return {"step": "evaluate", "output": {"low": state.low, "high": state.high}}
 
-    thinking.append(f"Updated range: [{state.low}, {state.high}]")
 
-    # 7. LOG
+# ── Main agent turn ────────────────────────────────────────────────────────────
+
+def run_agent_turn(
+    state: AgentState,
+    personality,
+    secret: int,
+    human_attempts: int = 0,
+    human_last_guess=None,
+    log: bool = True,
+) -> TurnResult:
+    """Execute one agentic turn. Modifies state in-place. Returns a TurnResult."""
+    # Capture range before mutation so the log records state at decision time
+    low_before = state.low
+    high_before = state.high
+
+    obs  = _observe(state)
+    plan = _plan(personality, state)
+    guess = plan["output"]["guess"]
+
+    act = _act(guess, secret)
+    outcome = act["output"]["outcome"]
+
+    assess = _assess(state, human_attempts)
+    situation = assess["output"]["situation"]
+
+    nar = _narrate(personality, state, guess, outcome, situation, human_last_guess)
+    narration = nar["output"]["narration"]
+    api_used  = nar["output"]["api_used"]
+
+    ev = _evaluate(state, guess, outcome)
+
+    thinking = [obs, plan, act, assess, nar, ev]
+
     if log:
         log_turn({
             "personality": personality.key,
