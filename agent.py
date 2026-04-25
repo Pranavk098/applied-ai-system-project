@@ -104,6 +104,7 @@ def run_agent_turn(
     secret: int,
     human_attempts: int = 0,
     human_last_guess: int | None = None,
+    log: bool = True,
 ) -> TurnResult:
     """Execute one agentic turn. Modifies state in-place. Returns a TurnResult."""
     thinking = []
@@ -148,17 +149,18 @@ def run_agent_turn(
     thinking.append(f"Updated range: [{state.low}, {state.high}]")
 
     # 7. LOG
-    log_turn({
-        "personality": personality.key,
-        "round": state.attempts,
-        "low_before": low_before,
-        "high_before": high_before,
-        "chosen_guess": guess,
-        "result": outcome,
-        "narration": narration,
-        "api_used": api_used,
-        "situation": situation,
-    })
+    if log:
+        log_turn({
+            "personality": personality.key,
+            "round": state.attempts,
+            "low_before": low_before,
+            "high_before": high_before,
+            "chosen_guess": guess,
+            "result": outcome,
+            "narration": narration,
+            "api_used": api_used,
+            "situation": situation,
+        })
 
     return TurnResult(
         guess=guess,

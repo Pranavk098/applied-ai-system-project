@@ -77,3 +77,17 @@ def test_fallback_narration_when_no_api_key():
     assert isinstance(narration, str)
     assert len(narration) > 0
     assert api_used is False
+
+
+def test_log_flag_suppresses_file_write(tmp_path, monkeypatch):
+    from logger import LOG_PATH
+    import logger
+    # Redirect log path to a temp file
+    tmp_log = tmp_path / "test_game_log.jsonl"
+    monkeypatch.setattr(logger, "LOG_PATH", tmp_log)
+
+    personality = get_personality("Strategist")
+    state = AgentState(low=1, high=100)
+    run_agent_turn(state, personality, secret=50, log=False)
+
+    assert not tmp_log.exists(), "log=False should not write to game_log.jsonl"
