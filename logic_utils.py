@@ -8,18 +8,24 @@ def get_range_for_difficulty(difficulty: str):
     return 1, 100
 
 
-def parse_guess(raw: str):
-    if raw is None:
+def parse_guess(raw: str, low: int | None = None, high: int | None = None):
+    """Parse and validate a raw guess string.
+
+    Returns (is_valid, parsed_int, error_message).
+    Rejects floats and out-of-range values when low/high are provided.
+    """
+    if not raw:
         return False, None, "Enter a guess."
-    if raw == "":
-        return False, None, "Enter a guess."
+    raw = raw.strip()
+    if "." in raw:
+        return False, None, "Enter a whole number — no decimals."
     try:
-        if "." in raw:
-            value = int(float(raw))
-        else:
-            value = int(raw)
+        value = int(raw)
     except Exception:
         return False, None, "That is not a number."
+    if low is not None and high is not None:
+        if not (low <= value <= high):
+            return False, None, f"Number must be between {low} and {high}."
     return True, value, None
 
 

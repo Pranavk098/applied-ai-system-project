@@ -33,3 +33,33 @@ Streamlit re-runs the entire script on every interaction. Every button click, te
 game_logic.py file was already written as a spec. Running pytest before touching any code immediately told you exactly what behavior was expected ("Win", "Too High", "Too Low") and gave a clear pass/fail target for each fix.
 
 ask the AI to explain why each piece of generated code works, not just what it does. In this project, the AI-generated check_guess() had the comparison operator backwards — a subtle bug that would have been caught if the reasoning behind the comparison had been questioned during generation
+
+---
+
+## Project 4 Reflection — Number Duel (AI Opponent)
+
+### 1. Limitations and biases in the system
+
+The Strategist and Professor personalities always pick the mathematical midpoint — they are deterministic and will always solve a 1–100 game in at most 7 guesses. This means they are not interesting to play against once you know how they work: you can predict every guess they will make. The Gambler's randomness makes it unreliable in the other direction — it can get lucky or waste most of its attempts depending on where the random walk lands. Neither extreme represents how a human opponent actually plays.
+
+The narration is biased toward the personality matching the situation label, but those labels (opening, ahead, behind, closing_in) are coarse. Two guesses into a range of [1, 100] the agent is labeled "ahead" if it has guessed fewer times than the human — but that's not meaningful this early. The commentary can feel false when the game is still wide open.
+
+Without an API key, all four personalities collapse into a single set of canned lines per situation. The personality distinction disappears from the narration entirely; only the strategy remains different.
+
+### 2. Could the AI be misused, and how would you prevent it?
+
+The game itself is low-stakes — it cannot produce harmful output because it only narrates a number guessing game. The most realistic misuse vector is the OpenAI API key: it is read from an environment variable, and if the app were deployed publicly with a key set, any player could trigger unlimited API calls. Mitigation: proxy calls through a server-side route that enforces per-session rate limits and never exposes the key to the client. A hard cap on tokens per game session (e.g., 500 tokens) would also contain costs.
+
+A second, subtler concern: the narration prompts include the human's last guess. In principle a user could inject instructions into their guess if input were passed unsanitized. The current code only passes a validated integer, so this path is closed — but it is worth keeping that invariant explicit as the system evolves.
+
+### 3. What surprised me while testing reliability
+
+The most surprising result came from `test_fallback_narration_when_no_api_key`. I expected the test to require mocking — patching the OpenAI client so it would not actually call the API. Instead, `get_narration` already handled the missing-key case with a try/except that caught the authentication error and returned a fallback line. The test passed immediately with zero changes to `agent.py`. That was reassuring, but it also revealed that the fallback path had never been intentionally designed — it was a side effect of a broad exception handler. A function that silently absorbs errors and returns a default can hide real bugs just as easily as it masks expected failures.
+
+The second surprise was how stable the Strategist tests were. `test_strategist_solves_normal_within_7` runs five different secrets (1, 25, 50, 73, 100) and passes every time with no flakiness. I had assumed off-by-one errors in the range narrowing would show up at the extremes (secret = 1 or 100), but the binary search logic was clean from the start.
+
+### 4. Collaboration with AI — one helpful suggestion, one flawed one
+
+**Helpful:** When designing how the agent should track its search range across turns, I asked Claude Code how to pass mutable state through repeated function calls without using globals. It suggested the `AgentState` dataclass — a single object holding `low`, `high`, `status`, and `history` that gets passed by reference and mutated in place each turn. This was cleaner than the dict I was planning to use and made the tests straightforward to write, since I could inspect `state.low` and `state.high` directly after each `run_agent_turn` call.
+
+**Flawed:** When writing `test_win_sets_status`, Claude Code suggested asserting `result.outcome == "win"` (lowercase). The test passed the linter but silently failed at runtime — `TurnResult.outcome` is set to `"Win"` (capitalized, matching the return value of `check_guess`). The mismatch meant the assertion always evaluated to `False` without raising an error because I had not yet added the `assert` keyword in that draft. Once the `assert` was in place the test failed immediately, making the bug obvious — but if the assertion had been written without the keyword it would have looked like a passing test forever. The lesson: always verify that a new test can actually fail before trusting that it passes.
