@@ -62,7 +62,7 @@ def test_turn_result_has_thinking_steps():
     result = run_agent_turn(state, personality, secret=99, log=False)
     assert len(result.thinking) >= 5
     step_names = {s["step"] for s in result.thinking}
-    assert step_names >= {"observe", "plan", "act", "assess", "evaluate"}
+    assert step_names >= {"observe", "plan", "act", "assess", "narrate", "evaluate"}
     for step in result.thinking:
         assert "step" in step
         assert "output" in step

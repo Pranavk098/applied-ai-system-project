@@ -39,13 +39,13 @@ def _detect_situation(agent_attempts: int, human_attempts: int, low: int, high: 
 
 
 def _call_openai(
-    personality,
+    personality: Personality,
     low: int,
     high: int,
     guess: int,
     outcome: str,
     situation: str,
-    human_last_guess,
+    human_last_guess: int | None,
 ) -> str:
     from openai import OpenAI
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
@@ -76,13 +76,13 @@ def _call_openai(
 
 
 def get_narration(
-    personality,
+    personality: Personality,
     low: int,
     high: int,
     guess: int,
     outcome: str,
     situation: str = "",
-    human_last_guess=None,
+    human_last_guess: int | None = None,
 ) -> tuple:
     """Return (narration_text, api_was_used). Falls back to canned line if API unavailable."""
     def _fallback() -> str:
@@ -103,18 +103,14 @@ def _observe(state: AgentState) -> dict:
     return {"step": "observe", "output": {"range": [state.low, state.high], "attempts": state.attempts}}
 
 
-def _plan(personality, state: AgentState) -> dict:
+def _plan(personality: Personality, state: AgentState) -> dict:
     guess = personality.strategy(state.low, state.high, state.history)
-    return {
-        "step": "plan",
-        "input": {"low": state.low, "high": state.high, "history": list(state.history)},
-        "output": {"guess": guess, "reason": personality.key},
-    }
+    return {"step": "plan", "output": {"guess": guess, "reason": personality.key}}
 
 
 def _act(guess: int, secret: int) -> dict:
     outcome = check_guess(guess, secret)
-    return {"step": "act", "input": {"guess": guess, "secret": secret}, "output": {"outcome": outcome}}
+    return {"step": "act", "output": {"guess": guess, "outcome": outcome}}
 
 
 def _assess(state: AgentState, human_attempts: int) -> dict:
@@ -122,7 +118,7 @@ def _assess(state: AgentState, human_attempts: int) -> dict:
     return {"step": "assess", "output": {"situation": situation}}
 
 
-def _narrate(personality, state: AgentState, guess: int, outcome: str, situation: str, human_last_guess) -> dict:
+def _narrate(personality: Personality, state: AgentState, guess: int, outcome: str, situation: str, human_last_guess: int | None) -> dict:
     narration, api_used = get_narration(
         personality, state.low, state.high, guess, outcome,
         situation=situation, human_last_guess=human_last_guess,
@@ -146,10 +142,10 @@ def _evaluate(state: AgentState, guess: int, outcome: str) -> dict:
 
 def run_agent_turn(
     state: AgentState,
-    personality,
+    personality: Personality,
     secret: int,
     human_attempts: int = 0,
-    human_last_guess=None,
+    human_last_guess: int | None = None,
     log: bool = True,
 ) -> TurnResult:
     """Execute one agentic turn. Modifies state in-place. Returns a TurnResult."""
@@ -164,6 +160,7 @@ def run_agent_turn(
     act = _act(guess, secret)
     outcome = act["output"]["outcome"]
 
+    # _assess must run before _evaluate: _detect_situation uses pre-increment state.attempts
     assess = _assess(state, human_attempts)
     situation = assess["output"]["situation"]
 
