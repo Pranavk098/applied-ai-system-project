@@ -326,6 +326,56 @@ Separating logic into pure functions (`logic_utils.py`, `personalities.py`) make
 
 ---
 
+## Evaluation Harness Results
+
+Run `python eval.py` to reproduce. Simulates each personality against 21 fixed
+secrets in the Normal range (1–100, 8-guess limit). Reproducible via `random.seed(42)`.
+
+```
+Number Duel — AI Evaluation Harness
+Secrets: 21 fixed values in [1, 100]   Guess limit: 8
+
+Personality       Avg Guesses  Max Guesses   Solved   Within Limit
+------------------------------------------------------------------
+Strategist                5.7            7    21/21          21/21
+Gambler                   8.5           17    21/21          12/21
+Professor                 5.7            7    21/21          21/21
+TrashTalker               6.4           11    21/21          18/21
+```
+
+The Strategist and Professor share identical strategies (binary search) and produce
+identical numbers. The Gambler's random walk solves every game eventually (21/21)
+but exceeds the 8-guess limit more than half the time — it is measurably the weakest
+opponent. The Trash-Talker's near-optimal strategy finishes within the limit on 18/21
+secrets; the 3 failures occur when its upward jitter overshoots on edge secrets.
+
+---
+
+## Few-Shot Specialization
+
+Each personality's OpenAI narration call now includes 3 few-shot (user, assistant)
+example pairs that demonstrate the target voice before the live game context is
+appended. This gives the model concrete anchors for each personality's register.
+
+**Same prompt, same situation (closing_in, agent ahead) — Strategist:**
+
+| Version | Output |
+|---|---|
+| Baseline (no few-shot) | "Getting close. I think I have this one." |
+| Few-shot enhanced | "Three values remain. I've already eliminated your likely range." |
+
+**Same prompt, same situation (behind, opening over) — Gambler:**
+
+| Version | Output |
+|---|---|
+| Baseline (no few-shot) | "I might be behind but I'm feeling good about this." |
+| Few-shot enhanced | "I'm behind. That's fine. I'm just warming up. My gut is recalibrating." |
+
+Without few-shot examples the model drifts toward neutral hedging under pressure.
+With examples it reliably mirrors the declared personality register.
+
+---
+
 ## Reflection
 
 Building this project clarified something important about agentic AI systems: the LLM is a voice, not a brain. The decisions — which number to guess, when to narrow the range, how to detect if the AI is ahead or behind — are all deterministic Python. The LLM makes the output feel alive, but it cannot be trusted with correctness. That separation is what makes the system testable and reliable.
