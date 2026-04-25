@@ -158,7 +158,7 @@ flowchart TD
     %% ════════════════════════════════════════════════════════
     %% TEST SUITE — verification only, dotted edges
     %% ════════════════════════════════════════════════════════
-    subgraph TESTS ["  Test Suite — tests/  (15 tests · all passing)  "]
+    subgraph TESTS ["  Test Suite — tests/  (17 tests · all passing)  "]
         direction TB
         T1["test_game_logic.py
         check_guess correctness
@@ -306,7 +306,7 @@ Each personality has a stored hex color that drives its card border, attempt num
 
 ## Testing Summary
 
-**Results:** 15 out of 15 tests passed across three test files. The agent reliably solves any 1–100 secret in 7 or fewer guesses. Fallback narration works correctly without an API key — zero crashes in offline mode. The one reliability gap found: `parse_guess` silently truncated floats before an explicit rejection rule was added, and this was caught by code review rather than tests.
+**Results:** 17 out of 17 tests passed across three test files. The agent reliably solves any 1–100 secret in 7 or fewer guesses. Fallback narration works correctly without an API key — zero crashes in offline mode. The one reliability gap found: `parse_guess` silently truncated floats before an explicit rejection rule was added, and this was caught by code review rather than tests.
 
 **What worked:**
 
