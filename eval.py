@@ -7,6 +7,7 @@ Usage:
 Runs each personality against 21 fixed secrets in the Normal range (1-100,
 limit 8 guesses). Prints a summary table. No API calls, no file logging.
 """
+import random
 from agent import AgentState, run_agent_turn
 from personalities import list_personalities, get_personality
 
@@ -22,7 +23,7 @@ def simulate(personality_key: str, secrets: list[int]) -> dict:
 
     for secret in secrets:
         state = AgentState(low=LOW, high=HIGH)
-        for _ in range(LIMIT + 5):          # allow a few extra turns to detect non-convergence
+        for _ in range(HIGH - LOW + 1):     # theoretical max for any strategy in this range
             if state.status == "won":
                 break
             run_agent_turn(state, get_personality(personality_key), secret=secret, log=False)
@@ -45,7 +46,8 @@ def simulate(personality_key: str, secrets: list[int]) -> dict:
 
 
 def main():
-    print(f"\nNumber Duel — AI Evaluation Harness")
+    random.seed(42)
+    print("\nNumber Duel — AI Evaluation Harness")
     print(f"Secrets: {len(SECRETS)} fixed values in [{LOW}, {HIGH}]   Guess limit: {LIMIT}\n")
 
     header = f"{'Personality':<16} {'Avg Guesses':>12} {'Max Guesses':>12} {'Solved':>8} {'Within Limit':>14}"
