@@ -36,3 +36,13 @@ def test_all_strategies_return_in_range():
 def test_list_personalities_returns_all_keys():
     keys = list_personalities()
     assert set(keys) == {"Strategist", "Gambler", "Professor", "TrashTalker"}
+
+
+def test_all_personalities_have_few_shot_examples():
+    for key in list_personalities():
+        p = get_personality(key)
+        assert hasattr(p, "few_shot_examples"), f"{key} missing few_shot_examples"
+        assert len(p.few_shot_examples) >= 3, f"{key} needs at least 3 few-shot pairs"
+        for ex in p.few_shot_examples:
+            assert "role" in ex and "content" in ex
+            assert ex["role"] in ("user", "assistant")

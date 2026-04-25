@@ -63,12 +63,13 @@ def _call_openai(
         context += f" The human just guessed {human_last_guess}."
     context += " React in character, addressing the human player directly. Under 30 words."
 
+    messages = [{"role": "system", "content": personality.system_prompt}]
+    messages.extend(personality.few_shot_examples)
+    messages.append({"role": "user", "content": context})
+
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": personality.system_prompt},
-            {"role": "user", "content": context},
-        ],
+        messages=messages,
         max_tokens=60,
         temperature=0.95,
     )

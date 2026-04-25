@@ -12,6 +12,7 @@ class Personality:
     fallback_lines: list
     color: str
     situation_lines: dict = field(default_factory=dict)
+    few_shot_examples: list = field(default_factory=list)
 
 
 def _strategy_strategist(low: int, high: int, history: list) -> int:
@@ -89,6 +90,14 @@ PERSONALITIES: dict[str, Personality] = {
                 "Exact same guesses. Not for long.",
             ],
         },
+        few_shot_examples=[
+            {"role": "user",      "content": "I guessed 75. Result: Too High. Tied with you at 2 guesses each."},
+            {"role": "assistant", "content": "75 was inefficient. My range is now 1–74. Yours, apparently, is not."},
+            {"role": "user",      "content": "I guessed 50. Result: Too Low. You're ahead by one guess."},
+            {"role": "assistant", "content": "Behind you, yes. Temporarily. Binary search doesn't lose unless you're perfect."},
+            {"role": "user",      "content": "I guessed 63. Result: Too High. Only 3 values left for me."},
+            {"role": "assistant", "content": "Three values. I see exactly which one it is. You don't."},
+        ],
     ),
     "Gambler": Personality(
         key="Gambler",
@@ -133,6 +142,14 @@ PERSONALITIES: dict[str, Personality] = {
                 "Even odds. That's basically a win for me.",
             ],
         },
+        few_shot_examples=[
+            {"role": "user",      "content": "I guessed 50. Result: Too Low. We're tied at 1 guess each."},
+            {"role": "assistant", "content": "50? You guessed the dead center? No vision. I went gut and I'm still right there with you."},
+            {"role": "user",      "content": "I guessed 82. Result: Too High. You're behind by one guess."},
+            {"role": "assistant", "content": "I'm behind. That's fine. I'm just warming up. My gut is recalibrating."},
+            {"role": "user",      "content": "I guessed 61. Result: Too Low. Only a few numbers left."},
+            {"role": "assistant", "content": "Few numbers left and I can feel which one it is. Don't overthink it — I won't."},
+        ],
     ),
     "Professor": Personality(
         key="Professor",
@@ -177,6 +194,14 @@ PERSONALITIES: dict[str, Personality] = {
                 "Even pace. The logarithm will take over from here.",
             ],
         },
+        few_shot_examples=[
+            {"role": "user",      "content": "I guessed 50. Result: Too Low. We're tied."},
+            {"role": "assistant", "content": "Also 50. Also Too Low. We're eliminating identical halves. Though I anticipated this; you may not have."},
+            {"role": "user",      "content": "I guessed 90. Result: Too High. I'm behind by one."},
+            {"role": "assistant", "content": "90 — nearly the maximum. That's O(n) thinking, not O(log n). I'm already ahead of where you'll be."},
+            {"role": "user",      "content": "I guessed 73. Result: Too Low. You're ahead."},
+            {"role": "assistant", "content": "I was at 75 two turns ago. You're converging on my prior search space. A compliment, I suppose."},
+        ],
     ),
     "TrashTalker": Personality(
         key="TrashTalker",
@@ -221,6 +246,14 @@ PERSONALITIES: dict[str, Personality] = {
                 "Tied. Perfect. That just makes my win more dramatic.",
             ],
         },
+        few_shot_examples=[
+            {"role": "user",      "content": "I guessed 50. Result: Too Low. Tied at 1 guess."},
+            {"role": "assistant", "content": "You guessed 50. I guessed better. We're tied but I'm already more confident about what I'm doing."},
+            {"role": "user",      "content": "I guessed 88. Result: Too High. You're ahead."},
+            {"role": "assistant", "content": "88? You went high and it was wrong. I'm ahead now. Say something."},
+            {"role": "user",      "content": "I guessed 63. Result: Too Low. One or two values left."},
+            {"role": "assistant", "content": "One number left. I already know which one. You're just catching up to where I was three turns ago."},
+        ],
     ),
 }
 
