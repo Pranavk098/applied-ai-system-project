@@ -46,6 +46,14 @@ The narration is biased toward the personality matching the situation label, but
 
 Without an API key, all four personalities collapse into a single set of canned lines per situation. The personality distinction disappears from the narration entirely; only the strategy remains different.
 
+### 1b. Future Improvements
+
+The most impactful near-term improvement would be making the agent's reasoning **visible in the UI**. The structured thinking steps (`_observe`, `_plan`, `_act`, `_assess`, `_narrate`, `_evaluate`) already exist as structured dicts in `TurnResult.thinking`, but they are never rendered for the player to see. A collapsible "Agent Trace" panel in the sidebar would let the player watch the AI's decision chain after each turn — this would make the agentic loop a feature of the experience rather than an internal implementation detail.
+
+A second improvement is **fallback narration deduplication**. In the current system, fallback lines are picked randomly and the same line can appear twice in a row (visible in game testing: "You're burning attempts. I'm not." appeared back-to-back). Tracking the last 2–3 narration lines in `AgentState` and excluding them from the random pick would eliminate the repetition and make the AI feel more present.
+
+A third improvement is **server-side API proxying** for public deployment. The API key is currently read from an environment variable which works locally but cannot safely be embedded in a public app. A thin FastAPI or Flask proxy that accepts narration requests from the Streamlit frontend, enforces per-session token limits, and holds the key server-side would make the game safe to deploy publicly.
+
 ### 2. Could the AI be misused, and how would you prevent it?
 
 The game itself is low-stakes — it cannot produce harmful output because it only narrates a number guessing game. The most realistic misuse vector is the OpenAI API key: it is read from an environment variable, and if the app were deployed publicly with a key set, any player could trigger unlimited API calls. Mitigation: proxy calls through a server-side route that enforces per-session rate limits and never exposes the key to the client. A hard cap on tokens per game session (e.g., 500 tokens) would also contain costs.

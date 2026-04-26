@@ -216,7 +216,16 @@ streamlit run app.py
 pytest
 ```
 
-Expected output: `15 passed`.
+Expected output: `17 passed`.
+
+**5. Run the evaluation harness** *(optional — no API key needed)*
+
+```bash
+python eval.py
+```
+
+Simulates all 4 AI personalities against 21 fixed secrets and prints a summary
+table showing average guesses, worst case, solve rate, and within-limit rate.
 
 ---
 

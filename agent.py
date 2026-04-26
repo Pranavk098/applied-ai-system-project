@@ -184,6 +184,7 @@ def run_agent_turn(
             "narration": narration,
             "api_used": api_used,
             "situation": situation,
+            "thinking_steps": [s["step"] + ": " + str(s["output"]) for s in thinking],
         })
 
     return TurnResult(
