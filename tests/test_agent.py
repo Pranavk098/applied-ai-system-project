@@ -125,3 +125,35 @@ def test_fallback_deduplication_resets_when_all_lines_exhausted():
             situation="ahead", recent_narrations=list(all_ahead),
         )
         assert isinstance(narration, str) and len(narration) > 0
+
+
+def test_reactive_close_line_chosen_when_human_guess_within_5():
+    """When human guessed within 5 of AI guess, a human_close reactive line is returned."""
+    personality = get_personality("Strategist")
+    close_lines = set(personality.reactive_lines["human_close"])
+    for _ in range(30):
+        narration, _ = get_narration(
+            personality, 1, 100, 50, "Too Low",
+            situation="ahead",
+            human_last_guess=48,    # diff = 2 ≤ 5
+            recent_narrations=[],
+        )
+        assert narration in close_lines, (
+            f"Expected a human_close line but got: {narration}"
+        )
+
+
+def test_reactive_far_line_chosen_when_human_guess_beyond_30():
+    """When human guessed >30 away from AI guess, a human_far reactive line is returned."""
+    personality = get_personality("Strategist")
+    far_lines = set(personality.reactive_lines["human_far"])
+    for _ in range(30):
+        narration, _ = get_narration(
+            personality, 1, 100, 50, "Too Low",
+            situation="ahead",
+            human_last_guess=10,    # diff = 40 > 30
+            recent_narrations=[],
+        )
+        assert narration in far_lines, (
+            f"Expected a human_far line but got: {narration}"
+        )

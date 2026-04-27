@@ -13,6 +13,7 @@ class Personality:
     color: str
     situation_lines: dict = field(default_factory=dict)
     few_shot_examples: list = field(default_factory=list)
+    reactive_lines: dict = field(default_factory=dict)
 
 
 def _strategy_strategist(low: int, high: int, history: list) -> int:
@@ -98,6 +99,18 @@ PERSONALITIES: dict[str, Personality] = {
             {"role": "user",      "content": "I guessed 63. Result: Too High. Only 3 values left for me."},
             {"role": "assistant", "content": "Three values. I see exactly which one it is. You don't."},
         ],
+        reactive_lines={
+            "human_close": [
+                "You're within 5 of my position. Converging. Still won't be fast enough.",
+                "Close range from you. I already passed through there. Keep up.",
+                "5 apart. You're catching up to where I was two turns ago.",
+            ],
+            "human_far": [
+                "Your last guess was over 30 off from mine. That range is already eliminated.",
+                "30 apart. One of us is using math. The other is guessing at random.",
+                "You're searching the wrong half of the range. I can see the pattern from here.",
+            ],
+        },
     ),
     "Gambler": Personality(
         key="Gambler",
@@ -150,6 +163,18 @@ PERSONALITIES: dict[str, Personality] = {
             {"role": "user",      "content": "I guessed 61. Result: Too Low. Only a few numbers left."},
             {"role": "assistant", "content": "Few numbers left and I can feel which one it is. Don't overthink it — I won't."},
         ],
+        reactive_lines={
+            "human_close": [
+                "Oh we're nearby? Coincidence. My gut landed here first.",
+                "Within 5? That's not strategy, that's luck. At least we have that in common.",
+                "Hey, we're neighbors. I got here on instinct. You got here on math. Sad.",
+            ],
+            "human_far": [
+                "30 numbers away from me? My gut found the right zip code. Yours found a different city.",
+                "We're miles apart and I'm still winning. That's the power of vibes.",
+                "You're way over there? I went somewhere completely different and I'm closer. Just saying.",
+            ],
+        },
     ),
     "Professor": Personality(
         key="Professor",
@@ -202,6 +227,18 @@ PERSONALITIES: dict[str, Personality] = {
             {"role": "user",      "content": "I guessed 73. Result: Too Low. You're ahead."},
             {"role": "assistant", "content": "I was at 75 two turns ago. You're converging on my prior search space. A compliment, I suppose."},
         ],
+        reactive_lines={
+            "human_close": [
+                "Your guess and mine differ by less than 5. You're approaching the correct interval. Slowly.",
+                "Within 5 of my position. You're learning. Unfortunately, I've already moved past this range.",
+                "Converging on my search space. That's accidental O(log n). I'll take it as a compliment.",
+            ],
+            "human_far": [
+                "Your guess diverges from mine by over 30. That level of variance is not a search strategy.",
+                "30 apart. You're in a region I eliminated two turns ago. Binary search, look it up.",
+                "A deviation of 30 or more from the midpoint suggests no model of the search space exists.",
+            ],
+        },
     ),
     "TrashTalker": Personality(
         key="TrashTalker",
@@ -254,6 +291,18 @@ PERSONALITIES: dict[str, Personality] = {
             {"role": "user",      "content": "I guessed 63. Result: Too Low. One or two values left."},
             {"role": "assistant", "content": "One number left. I already know which one. You're just catching up to where I was three turns ago."},
         ],
+        reactive_lines={
+            "human_close": [
+                "Oh you guessed near me? I set the pace here. You're just following.",
+                "Within 5? You're in my neighborhood. I was here first. Leave.",
+                "Getting close to where I am? I'm already ahead of where you're going next.",
+            ],
+            "human_far": [
+                "You just guessed 30 away from me? You have no idea where this number lives.",
+                "That far off? I'm embarrassed for you. At least make it interesting.",
+                "30+ away from where I am? We're not even playing the same game right now.",
+            ],
+        },
     ),
 }
 

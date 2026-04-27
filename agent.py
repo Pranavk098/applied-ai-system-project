@@ -90,7 +90,25 @@ def get_narration(
     """Return (narration_text, api_was_used). Falls back to canned line if API unavailable."""
     recent = recent_narrations or []
 
+    def _quality_signal() -> str | None:
+        if human_last_guess is None:
+            return None
+        diff = abs(human_last_guess - guess)
+        if diff <= 5:
+            return "human_close"
+        if diff > 30:
+            return "human_far"
+        return None
+
     def _fallback() -> str:
+        # 1. Try reactive lines for the quality signal (filtered by recent history)
+        signal = _quality_signal()
+        if signal and signal in personality.reactive_lines:
+            fresh = [l for l in personality.reactive_lines[signal] if l not in recent]
+            if fresh:
+                return random.choice(fresh)
+
+        # 2. Fall back to situation-specific lines (filtered by recent history)
         pool = (
             personality.situation_lines.get(situation)
             or personality.situation_lines.get("default")

@@ -46,3 +46,13 @@ def test_all_personalities_have_few_shot_examples():
         for ex in p.few_shot_examples:
             assert "role" in ex and "content" in ex
             assert ex["role"] in ("user", "assistant")
+
+
+def test_all_personalities_have_reactive_lines():
+    for key in list_personalities():
+        p = get_personality(key)
+        assert hasattr(p, "reactive_lines"), f"{key} missing reactive_lines"
+        assert "human_close" in p.reactive_lines, f"{key} missing human_close"
+        assert "human_far"   in p.reactive_lines, f"{key} missing human_far"
+        assert len(p.reactive_lines["human_close"]) >= 3, f"{key} needs ≥3 human_close lines"
+        assert len(p.reactive_lines["human_far"])   >= 3, f"{key} needs ≥3 human_far lines"
