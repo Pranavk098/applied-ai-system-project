@@ -3,10 +3,24 @@ import random
 import streamlit as st
 from logic_utils import get_range_for_difficulty, parse_guess, check_guess, update_score
 from agent import AgentState, run_agent_turn
-from personalities import get_personality
+from personalities import get_personality, PERSONALITIES
 from logger import log_turn
 
 st.set_page_config(page_title="Number Duel", page_icon="⚔️", layout="wide")
+
+# ── Personality / difficulty display metadata ─────────────────────────────────
+_PERSONALITY_META = {
+    "Strategist":  {"emoji": "⚡", "tagline": "Cold & precise",      "danger": 4},
+    "Gambler":     {"emoji": "🎲", "tagline": "Reckless instinct",   "danger": 2},
+    "Professor":   {"emoji": "🧠", "tagline": "Condescending logic", "danger": 3},
+    "TrashTalker": {"emoji": "💀", "tagline": "Pure ego",            "danger": 3},
+}
+
+_DIFF_META = {
+    "Easy":   {"color": "#22C55E", "range": "1–20",  "attempts": 6},
+    "Normal": {"color": "#F59E0B", "range": "1–100", "attempts": 8},
+    "Hard":   {"color": "#EF4444", "range": "1–50",  "attempts": 5},
+}
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""<style>
@@ -19,7 +33,6 @@ st.markdown("""<style>
 
 section[data-testid="stSidebar"] {
     background-color: #080818;
-    border-right: 1px solid #1E1B4B;
 }
 
 h1, h2, h3 { font-family: 'Russo One', sans-serif !important; color: #E2E8F0 !important; }
@@ -68,7 +81,7 @@ h1, h2, h3 { font-family: 'Russo One', sans-serif !important; color: #E2E8F0 !im
     justify-content: center; height: 100%; gap: 0.3rem; padding: 1rem 0;
 }
 .vs-label { font-size: 0.58rem; color: #374151; letter-spacing: 0.25em; text-transform: uppercase; }
-.vs-text { font-family: 'Russo One', sans-serif; font-size: 2.2rem; color: #F43F5E; text-shadow: 0 0 18px #F43F5E70; line-height: 1; }
+.vs-text { font-family: 'Russo One', sans-serif; font-size: 2.2rem; line-height: 1; }
 .vs-range { font-size: 0.68rem; color: #374151; letter-spacing: 0.08em; }
 
 .last-turn-bar {
@@ -193,6 +206,28 @@ div[data-testid="stAlert"] { border-radius: 8px !important; font-family: 'Chakra
 details { background: #0D0D2B !important; border: 1px solid #1E293B !important; border-radius: 8px !important; }
 details summary { font-family: 'Chakra Petch', monospace !important; color: #64748B !important; }
 
+/* Sidebar utility buttons (personality select, difficulty) */
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+    font-size: 0.62rem !important;
+    font-family: 'Chakra Petch', monospace !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    padding: 0.28rem 0.5rem !important;
+    border-radius: 5px !important;
+    background: #0D0D2B !important;
+    border: 1px solid #1E293B !important;
+    color: #64748B !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
+    border-color: #475569 !important;
+    color: #94A3B8 !important;
+}
+
+/* Remove extra top padding from sidebar markdown paragraphs */
+section[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] > p {
+    margin-bottom: 0 !important;
+}
+
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 </style>""", unsafe_allow_html=True)
@@ -267,7 +302,6 @@ def render_battle_log(log: list):
             )
             if entry.get("narration"):
                 safe_narration = _html.escape(entry["narration"])
-                # Important turns get a slightly brighter, bolder narration
                 weight = "600" if entry.get("important") else "400"
                 opacity = "1" if entry.get("important") else "0.7"
                 rows += (
@@ -358,35 +392,207 @@ def reset_round(difficulty: str):
     st.session_state.agent_attempts = 0
     st.session_state.agent_status = "playing"
     st.session_state.agent_history = []
+    st.session_state.agent_narration_history = []
     st.session_state.agent_last_guess = None
     st.session_state.battle_log = []
+    st.session_state.game_counted = False
 
+
+# ── Early UI state ────────────────────────────────────────────────────────────
+for _k, _v in [
+    ("selected_personality", "Strategist"),
+    ("selected_difficulty", "Normal"),
+    ("session_wins", 0),
+    ("session_losses", 0),
+    ("session_streak", 0),
+    ("game_counted", False),
+    ("sidebar_quote", None),
+    ("sidebar_quote_key", None),
+]:
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+selected_personality = st.session_state.selected_personality
+difficulty = st.session_state.selected_difficulty
+
+attempt_limit_map = {"Easy": 6, "Normal": 8, "Hard": 5}
+attempt_limit = attempt_limit_map[difficulty]
+low, high = get_range_for_difficulty(difficulty)
+
+_active_personality = get_personality(selected_personality)
+_active_color = _active_personality.color
+
+# Cache opening quote — pick once per personality, stable across rerenders
+if st.session_state.sidebar_quote_key != selected_personality:
+    st.session_state.sidebar_quote = random.choice(
+        _active_personality.situation_lines.get("opening", ["..."])
+    )
+    st.session_state.sidebar_quote_key = selected_personality
+
+# ── Dynamic personality color theming ────────────────────────────────────────
+st.markdown(
+    f'<style>'
+    f'.vs-text {{ color: {_active_color} !important; text-shadow: 0 0 18px {_active_color}70 !important; }}'
+    f'section[data-testid="stSidebar"] {{ border-right: 1px solid {_active_color}30 !important; }}'
+    f'</style>',
+    unsafe_allow_html=True,
+)
 
 # ── Title ─────────────────────────────────────────────────────────────────────
 st.markdown('<h1 class="duel-title">NUMBER DUEL</h1>', unsafe_allow_html=True)
 st.markdown('<p class="duel-sub">Human vs AI &nbsp;·&nbsp; Who finds it first?</p>', unsafe_allow_html=True)
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
-st.sidebar.markdown("### Settings")
-difficulty = st.sidebar.selectbox("Difficulty", ["Easy", "Normal", "Hard"], index=1)
-attempt_limit_map = {"Easy": 6, "Normal": 8, "Hard": 5}
-attempt_limit = attempt_limit_map[difficulty]
-low, high = get_range_for_difficulty(difficulty)
-st.sidebar.caption(f"Range: {low}–{high}   ·   Max guesses: {attempt_limit}")
 
-st.sidebar.divider()
-st.sidebar.markdown("### Your Opponent")
-_p_labels = {
-    "Strategist": "The Strategist — cold & precise",
-    "Gambler": "The Gambler — reckless instinct",
-    "Professor": "The Professor — condescending logic",
-    "TrashTalker": "The Trash-Talker — pure ego",
-}
-selected_personality = st.sidebar.radio(
-    "Pick your opponent",
-    options=list(_p_labels.keys()),
-    format_func=lambda k: _p_labels[k],
-    label_visibility="collapsed",
+# — Header: active personality —
+_opening_quote = st.session_state.sidebar_quote
+st.sidebar.markdown(
+    f'<div style="padding:0.75rem 0 0.85rem">'
+    f'<div style="font-size:0.55rem;color:#475569;letter-spacing:0.28em;text-transform:uppercase;margin-bottom:0.45rem">CURRENTLY FACING</div>'
+    f'<div style="font-family:Russo One,sans-serif;font-size:1.15rem;color:{_active_color};'
+    f'text-shadow:0 0 14px {_active_color}50;letter-spacing:0.05em;margin-bottom:0.3rem">'
+    f'{_PERSONALITY_META[selected_personality]["emoji"]} {_active_personality.name.upper()}'
+    f'</div>'
+    f'<div style="color:{_active_color}90;font-size:0.7rem;font-style:italic;line-height:1.4">'
+    f'"{_html.escape(_opening_quote)}"'
+    f'</div>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
+st.sidebar.markdown(
+    f'<hr style="border:none;border-top:1px solid {_active_color}25;margin:0 0 0.9rem"/>',
+    unsafe_allow_html=True,
+)
+
+# — Difficulty tier strip —
+st.sidebar.markdown(
+    '<div style="font-size:0.55rem;color:#374151;letter-spacing:0.28em;text-transform:uppercase;margin-bottom:0.5rem">DIFFICULTY</div>',
+    unsafe_allow_html=True,
+)
+_diff_cols = st.sidebar.columns(3)
+for _i, (_diff_key, _diff_info) in enumerate(_DIFF_META.items()):
+    _is_diff_sel = difficulty == _diff_key
+    _dc = _diff_info["color"]
+    with _diff_cols[_i]:
+        if _is_diff_sel:
+            st.markdown(
+                f'<div style="background:{_dc};color:#0F0F23;border-radius:6px;'
+                f'padding:0.4rem 0.25rem;text-align:center;'
+                f'font-family:Russo One,sans-serif;font-size:0.58rem;'
+                f'letter-spacing:0.06em;text-transform:uppercase;line-height:1.6">'
+                f'{_diff_key}<br>'
+                f'<span style="font-size:0.48rem;opacity:0.75;font-family:Chakra Petch,monospace;font-weight:normal">'
+                f'{_diff_info["range"]} · {_diff_info["attempts"]}att</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            if st.button(
+                _diff_key,
+                key=f"diff_{_diff_key}",
+                use_container_width=True,
+                help=f"{_diff_info['range']} · {_diff_info['attempts']} attempts",
+            ):
+                st.session_state.selected_difficulty = _diff_key
+                st.session_state.active_difficulty = _diff_key
+                reset_round(_diff_key)
+                st.rerun()
+
+st.sidebar.markdown('<div style="height:0.75rem"></div>', unsafe_allow_html=True)
+st.sidebar.markdown(
+    '<hr style="border:none;border-top:1px solid #1E293B;margin:0 0 0.9rem"/>',
+    unsafe_allow_html=True,
+)
+
+# — Personality battle cards —
+st.sidebar.markdown(
+    '<div style="font-size:0.55rem;color:#374151;letter-spacing:0.28em;text-transform:uppercase;margin-bottom:0.6rem">CHOOSE YOUR OPPONENT</div>',
+    unsafe_allow_html=True,
+)
+for _p_key, _p_meta in _PERSONALITY_META.items():
+    _p_obj = PERSONALITIES[_p_key]
+    _is_p_sel = selected_personality == _p_key
+    _p_color = _p_obj.color
+    _pips = "●" * _p_meta["danger"] + "○" * (5 - _p_meta["danger"])
+
+    if _is_p_sel:
+        _card_style = (
+            f"background:{_p_color}18;"
+            f"border-left:3px solid {_p_color};"
+            f"border-top:1px solid {_p_color}35;"
+            f"border-right:1px solid {_p_color}20;"
+            f"border-bottom:1px solid {_p_color}20;"
+            f"box-shadow:0 0 14px {_p_color}28;"
+        )
+        _name_color = "#E2E8F0"
+        _active_badge = (
+            f'<span style="font-size:0.52rem;color:{_p_color};'
+            f'letter-spacing:0.12em;text-transform:uppercase">ACTIVE</span>'
+        )
+    else:
+        _card_style = (
+            f"background:#08081A;"
+            f"border-left:3px solid {_p_color}38;"
+            f"border-top:1px solid #1E293B;"
+            f"border-right:1px solid #1E293B;"
+            f"border-bottom:1px solid #1E293B;"
+        )
+        _name_color = "#64748B"
+        _active_badge = ""
+
+    st.sidebar.markdown(
+        f'<div style="{_card_style}border-radius:0 8px 8px 0;padding:0.6rem 0.8rem;margin-bottom:0.2rem">'
+        f'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.2rem">'
+        f'<span style="font-family:Russo One,sans-serif;color:{_name_color};font-size:0.78rem">'
+        f'{_p_meta["emoji"]} {_html.escape(_p_obj.name)}'
+        f'</span>'
+        f'{_active_badge}'
+        f'</div>'
+        f'<div style="color:#475569;font-size:0.63rem;margin-bottom:0.28rem">{_html.escape(_p_meta["tagline"])}</div>'
+        f'<div style="color:{_p_color};font-size:0.6rem;letter-spacing:0.14em">{_pips}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    if not _is_p_sel:
+        if st.sidebar.button(f"⚔ Challenge", key=f"sel_{_p_key}", use_container_width=True):
+            st.session_state.selected_personality = _p_key
+            st.session_state.personality_key = _p_key
+            reset_round(difficulty)
+            st.rerun()
+    else:
+        st.sidebar.markdown('<div style="height:0.35rem"></div>', unsafe_allow_html=True)
+
+# — Session scoreboard —
+st.sidebar.markdown(
+    '<hr style="border:none;border-top:1px solid #1E293B;margin:0.9rem 0 0.6rem"/>',
+    unsafe_allow_html=True,
+)
+st.sidebar.markdown(
+    '<div style="font-size:0.55rem;color:#374151;letter-spacing:0.28em;text-transform:uppercase;margin-bottom:0.5rem">SESSION</div>',
+    unsafe_allow_html=True,
+)
+_streak_count = min(st.session_state.session_streak, 5)
+_streak_pips = "".join(
+    [f'<span style="color:#4ADE80;font-size:0.72rem">●</span>' for _ in range(_streak_count)]
+    + [f'<span style="color:#1E293B;font-size:0.72rem">●</span>' for _ in range(5 - _streak_count)]
+)
+st.sidebar.markdown(
+    f'<div style="display:flex;gap:1.5rem;align-items:center;padding:0.2rem 0 0.5rem">'
+    f'<div style="text-align:center">'
+    f'<div style="font-family:Russo One,sans-serif;font-size:1.5rem;color:#4ADE80">{st.session_state.session_wins}</div>'
+    f'<div style="font-size:0.52rem;color:#374151;letter-spacing:0.2em;text-transform:uppercase">W</div>'
+    f'</div>'
+    f'<div style="text-align:center">'
+    f'<div style="font-family:Russo One,sans-serif;font-size:1.5rem;color:#F43F5E">{st.session_state.session_losses}</div>'
+    f'<div style="font-size:0.52rem;color:#374151;letter-spacing:0.2em;text-transform:uppercase">L</div>'
+    f'</div>'
+    f'<div>'
+    f'<div style="font-size:0.52rem;color:#374151;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.3rem">STREAK</div>'
+    f'<div style="display:flex;gap:3px">{_streak_pips}</div>'
+    f'</div>'
+    f'</div>',
+    unsafe_allow_html=True,
 )
 
 # ── Session state init ────────────────────────────────────────────────────────
@@ -403,6 +609,7 @@ _defaults = {
     "agent_attempts": 0,
     "agent_status": "playing",
     "agent_history": [],
+    "agent_narration_history": [],          # ← add this line
     "battle_log": [],
     "human_last_guess": None,
     "agent_last_guess": None,
@@ -480,6 +687,17 @@ if human_done or agent_done:
     else:
         winner = "draw"
 
+    # Update session scores exactly once per game result
+    if not st.session_state.game_counted:
+        st.session_state.game_counted = True
+        if winner == "human":
+            st.session_state.session_wins += 1
+            st.session_state.session_streak += 1
+        elif winner in ("agent", "both_lost"):
+            st.session_state.session_losses += 1
+            st.session_state.session_streak = 0
+        # draw: no W/L change, no streak change
+
     render_match_result(
         winner=winner,
         secret=st.session_state.secret,
@@ -528,7 +746,6 @@ if submit:
             attempt_number=st.session_state.attempts,
         )
 
-        # Log the human turn
         log_turn({
             "player": "human",
             "guess": guess_int,
@@ -562,6 +779,7 @@ if submit:
                     attempts=st.session_state.agent_attempts,
                     status=st.session_state.agent_status,
                     history=list(st.session_state.agent_history),
+                    narration_history=list(st.session_state.agent_narration_history),
                 )
                 result = run_agent_turn(
                     agent_state,
@@ -576,15 +794,15 @@ if submit:
             st.session_state.agent_attempts = agent_state.attempts
             st.session_state.agent_status = agent_state.status
             st.session_state.agent_history = agent_state.history
+            st.session_state.agent_narration_history = agent_state.narration_history
             st.session_state.agent_last_guess = result.guess
 
-            # Show narration only on important moments
             remaining_range = st.session_state.agent_high - st.session_state.agent_low + 1
             is_important = (
-                st.session_state.agent_attempts == 1       # first AI turn
-                or remaining_range <= 5                    # closing in
-                or result.outcome == "Win"                 # AI wins
-                or st.session_state.agent_attempts < st.session_state.attempts  # AI overtook
+                st.session_state.agent_attempts == 1
+                or remaining_range <= 5
+                or result.outcome == "Win"
+                or st.session_state.agent_attempts < st.session_state.attempts
             )
 
             st.session_state.battle_log.append({
@@ -617,4 +835,7 @@ with st.expander("Developer Debug"):
         "agent_range": [st.session_state.agent_low, st.session_state.agent_high],
         "score": st.session_state.score,
         "history": st.session_state.history,
+        "session_wins": st.session_state.session_wins,
+        "session_losses": st.session_state.session_losses,
+        "session_streak": st.session_state.session_streak,
     })
