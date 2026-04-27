@@ -609,7 +609,7 @@ _defaults = {
     "agent_attempts": 0,
     "agent_status": "playing",
     "agent_history": [],
-    "agent_narration_history": [],          # ← add this line
+    "agent_narration_history": [],
     "battle_log": [],
     "human_last_guess": None,
     "agent_last_guess": None,
