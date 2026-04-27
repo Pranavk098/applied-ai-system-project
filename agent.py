@@ -12,8 +12,9 @@ class AgentState:
     low: int
     high: int
     attempts: int = 0
-    status: str = "playing"  # "playing" | "won" | "lost"
+    status: str = "playing"   # "playing" | "won" | "lost"
     history: list = field(default_factory=list)
+    narration_history: list = field(default_factory=list)  # last N narration strings
 
 
 @dataclass
@@ -84,11 +85,19 @@ def get_narration(
     outcome: str,
     situation: str = "",
     human_last_guess: int | None = None,
+    recent_narrations: list[str] | None = None,
 ) -> tuple:
     """Return (narration_text, api_was_used). Falls back to canned line if API unavailable."""
+    recent = recent_narrations or []
+
     def _fallback() -> str:
-        lines = personality.situation_lines.get(situation) or personality.situation_lines.get("default") or personality.fallback_lines
-        return random.choice(lines)
+        pool = (
+            personality.situation_lines.get(situation)
+            or personality.situation_lines.get("default")
+            or personality.fallback_lines
+        )
+        fresh = [l for l in pool if l not in recent]
+        return random.choice(fresh if fresh else pool)
 
     if not os.environ.get("OPENAI_API_KEY"):
         return _fallback(), False
@@ -122,7 +131,9 @@ def _assess(state: AgentState, human_attempts: int) -> dict:
 def _narrate(personality: Personality, state: AgentState, guess: int, outcome: str, situation: str, human_last_guess: int | None) -> dict:
     narration, api_used = get_narration(
         personality, state.low, state.high, guess, outcome,
-        situation=situation, human_last_guess=human_last_guess,
+        situation=situation,
+        human_last_guess=human_last_guess,
+        recent_narrations=state.narration_history,
     )
     return {"step": "narrate", "output": {"narration": narration, "api_used": api_used}}
 
@@ -168,6 +179,12 @@ def run_agent_turn(
     nar = _narrate(personality, state, guess, outcome, situation, human_last_guess)
     narration = nar["output"]["narration"]
     api_used  = nar["output"]["api_used"]
+
+    # Append to narration history; keep only last 3 to avoid staleness
+    _NARRATION_HISTORY_SIZE = 3
+    state.narration_history.append(narration)
+    if len(state.narration_history) > _NARRATION_HISTORY_SIZE:
+        state.narration_history.pop(0)
 
     ev = _evaluate(state, guess, outcome)
 

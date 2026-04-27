@@ -98,3 +98,34 @@ def test_log_flag_suppresses_file_write(tmp_path, monkeypatch):
     state2 = AgentState(low=1, high=100)
     run_agent_turn(state2, personality, secret=50, log=False)
     assert not tmp_log.exists(), "log=False should not write to game_log.jsonl"
+
+
+def test_fallback_deduplication_avoids_recent_line():
+    """When all-but-one lines are in recent history, the remaining line is always chosen."""
+    from personalities import get_personality
+    from agent import get_narration
+    personality = get_personality("Strategist")
+    ahead_lines = personality.situation_lines["ahead"]   # 3 lines
+    recent = ahead_lines[:2]                             # mark first 2 as recent
+    for _ in range(30):
+        narration, _ = get_narration(
+            personality, 1, 100, 50, "Too Low",
+            situation="ahead", recent_narrations=recent,
+        )
+        assert narration == ahead_lines[2], (
+            f"Expected only the non-recent line but got: {narration}"
+        )
+
+
+def test_fallback_deduplication_resets_when_all_lines_exhausted():
+    """When every line is in recent history the function still returns a valid string."""
+    from personalities import get_personality
+    from agent import get_narration
+    personality = get_personality("Strategist")
+    all_ahead = personality.situation_lines["ahead"]
+    for _ in range(10):
+        narration, _ = get_narration(
+            personality, 1, 100, 50, "Too Low",
+            situation="ahead", recent_narrations=list(all_ahead),
+        )
+        assert isinstance(narration, str) and len(narration) > 0
