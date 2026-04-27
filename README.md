@@ -229,6 +229,12 @@ table showing average guesses, worst case, solve rate, and within-limit rate.
 
 ---
 
+## Demonstration Video
+
+[Watch the walkthrough on Loom](https://www.loom.com/share/1360ab96b8bd4b66aca9d55c4faf7f1f)
+
+---
+
 ## Sample Interactions
 
 ### Example 1 — Human wins against The Strategist (Normal, secret = 73)
