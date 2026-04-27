@@ -157,3 +157,21 @@ def test_reactive_far_line_chosen_when_human_guess_beyond_30():
         assert narration in far_lines, (
             f"Expected a human_far line but got: {narration}"
         )
+
+
+def test_reactive_lines_fall_through_to_situation_when_all_exhausted():
+    """When all reactive lines are in recent history, fall through to situation lines."""
+    personality = get_personality("Strategist")
+    all_close = list(personality.reactive_lines["human_close"])   # all 3 reactive lines
+    ahead_lines = set(personality.situation_lines["ahead"])
+
+    for _ in range(30):
+        narration, _ = get_narration(
+            personality, 1, 100, 50, "Too Low",
+            situation="ahead",
+            human_last_guess=48,            # diff = 2 ≤ 5 (signal fires)
+            recent_narrations=all_close,    # but all reactive lines are exhausted
+        )
+        assert narration in ahead_lines, (
+            f"Expected an ahead situation line but got: {narration}"
+        )
