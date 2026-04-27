@@ -150,6 +150,8 @@ def _evaluate(state: AgentState, guess: int, outcome: str) -> dict:
     return {"step": "evaluate", "output": {"low": state.low, "high": state.high}}
 
 
+_NARRATION_HISTORY_SIZE = 3
+
 # ── Main agent turn ────────────────────────────────────────────────────────────
 
 def run_agent_turn(
@@ -181,7 +183,6 @@ def run_agent_turn(
     api_used  = nar["output"]["api_used"]
 
     # Append to narration history; keep only last 3 to avoid staleness
-    _NARRATION_HISTORY_SIZE = 3
     state.narration_history.append(narration)
     if len(state.narration_history) > _NARRATION_HISTORY_SIZE:
         state.narration_history.pop(0)

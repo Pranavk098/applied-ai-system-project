@@ -102,8 +102,6 @@ def test_log_flag_suppresses_file_write(tmp_path, monkeypatch):
 
 def test_fallback_deduplication_avoids_recent_line():
     """When all-but-one lines are in recent history, the remaining line is always chosen."""
-    from personalities import get_personality
-    from agent import get_narration
     personality = get_personality("Strategist")
     ahead_lines = personality.situation_lines["ahead"]   # 3 lines
     recent = ahead_lines[:2]                             # mark first 2 as recent
@@ -119,8 +117,6 @@ def test_fallback_deduplication_avoids_recent_line():
 
 def test_fallback_deduplication_resets_when_all_lines_exhausted():
     """When every line is in recent history the function still returns a valid string."""
-    from personalities import get_personality
-    from agent import get_narration
     personality = get_personality("Strategist")
     all_ahead = personality.situation_lines["ahead"]
     for _ in range(10):
